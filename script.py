@@ -7,6 +7,10 @@ app = Flask(__name__)
 THINGSBOARD_DEVICE_TOKEN = "IAA8SKCg6vUtp36vLToN"
 THINGSBOARD_API_URL = "https://demo.thingsboard.io/api/v1/"  # Update to your ThingsBoard instance URL
 
+@app.route("/", methods=["GET"])
+def get_request():
+    return {"status": "OK"}
+
 def send_to_thingsboard(data):
     url = f"{THINGSBOARD_API_URL}{THINGSBOARD_DEVICE_TOKEN}/telemetry"
     try:
