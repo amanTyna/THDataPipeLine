@@ -35,7 +35,7 @@ def get_data():
         "humidity": decoded_payload.get("humidity")
     }
     status_code, response_message = send_to_thingsboard(telemetry_data)
-    print(f"Thingsboard API: {status}\nMessage: {response_message}")
+    print(f"Thingsboard API: {status_code}\nMessage: {response_message}")
 
     if status_code == 200:
         return jsonify({"status": "success", "message": "Data sent to ThingsBoard"}), 200
