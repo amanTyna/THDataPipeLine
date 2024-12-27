@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 import requests
 
-
 app = Flask(__name__)
 
 THINGSBOARD_DEVICE_TOKEN = "66o1EJj6uOAVnJuczXn2"
@@ -22,36 +21,45 @@ def send_to_thingsboard(data):
         print(f"Error sending data to ThingsBoard: {e}")
         return 500, str(e)
 
-
 @app.route("/uplink", methods=["POST"])
 def get_data():
     payload = request.json
+    print(f"Received Payload: {payload}")  # Debugging received payload
+
     if not payload:
         return jsonify({"error": "Missing payload"}), 400
 
-    decoded_payload = payload.get("decoded_payload", {})
-    
-    # Validate and sanitize data
-    temperature = decoded_payload.get("temperature")
-    humidity = decoded_payload.get("humidity")
+    # Navigate through nested JSON to extract temperature and humidity
+    try:
+        uplink_message = payload.get("data", {}).get("uplink_message", {})
+        decoded_payload = uplink_message.get("decoded_payload", {})
 
-    if temperature is None or humidity is None:
-        return jsonify({"error": "Invalid telemetry data", "data": decoded_payload}), 400
+        temperature = decoded_payload.get("temperature")
+        humidity = decoded_payload.get("humidity")
 
-    telemetry_data = {
-        "temperature": temperature,
-        "humidity": humidity
-    }
+        # Check if data is valid
+        if temperature is None or humidity is None:
+            return jsonify({"error": "Invalid telemetry data", "decoded_payload": decoded_payload}), 400
 
-    status_code, response_message = send_to_thingsboard(telemetry_data)
-    print(f"Data sent to ThingsBoard: {telemetry_data}")
-    print(f"ThingsBoard API Response: {status_code} - {response_message}")
+        # Prepare telemetry data
+        telemetry_data = {
+            "temperature": temperature,
+            "humidity": humidity
+        }
 
-    if status_code == 200:
-        return jsonify({"status": "success", "message": "Data sent to ThingsBoard"}), 200
-    else:
-        return jsonify({"status": "error", "message": response_message}), status_code
+        # Send to ThingsBoard
+        status_code, response_message = send_to_thingsboard(telemetry_data)
+        print(f"ThingsBoard API Response: {status_code} - {response_message}")
+
+        if status_code == 200:
+            return jsonify({"status": "success", "message": "Data sent to ThingsBoard"}), 200
+        else:
+            return jsonify({"status": "error", "message": response_message}), status_code
+
+    except Exception as e:
+        print(f"Error processing payload: {e}")
+        return jsonify({"error": "Failed to process payload", "message": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
