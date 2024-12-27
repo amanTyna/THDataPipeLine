@@ -2,6 +2,10 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
+@app.route("/", methods=["POST"])
+def get_request():
+    return {"status": "OK"}
+
 @app.route("/uplink", methods=["POST"])
 def log_payload():
     payload = request.json
