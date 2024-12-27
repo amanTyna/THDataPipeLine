@@ -14,7 +14,7 @@ def get_request():
 def send_to_thingsboard(data):
     url = f"{THINGSBOARD_API_URL}{THINGSBOARD_DEVICE_TOKEN}/telemetry"
     try:
-        print(data)
+        #print(data)
         response = requests.post(url, json=data)
         response.raise_for_status()
         return response.status_code, response.text
@@ -34,8 +34,8 @@ def get_data():
         "temperature": decoded_payload.get("temperature"),
         "humidity": decoded_payload.get("humidity")
     }
-    #print(telemetry_data)
     status_code, response_message = send_to_thingsboard(telemetry_data)
+    print(f"Thingsboard API: {status}\nMessage: {response_message}")
 
     if status_code == 200:
         return jsonify({"status": "success", "message": "Data sent to ThingsBoard"}), 200
