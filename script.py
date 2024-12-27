@@ -4,7 +4,7 @@ import requests
 
 app = Flask(__name__)
 
-THINGSBOARD_DEVICE_TOKEN = "IAA8SKCg6vUtp36vLToN"
+THINGSBOARD_DEVICE_TOKEN = "66o1EJj6uOAVnJuczXn2"
 THINGSBOARD_API_URL = "https://demo.thingsboard.io/api/v1/"  # Update to your ThingsBoard instance URL
 
 @app.route("/", methods=["GET"])
