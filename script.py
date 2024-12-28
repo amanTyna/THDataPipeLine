@@ -3,22 +3,34 @@ import requests
 
 app = Flask(__name__)
 
-THINGSBOARD_DEVICE_TOKEN = "66o1EJj6uOAVnJuczXn2"
-THINGSBOARD_API_URL = "https://demo.thingsboard.io/api/v1/"
+# Mapping device IDs to ThingsBoard device tokens
+DEVICE_TOKEN_MAP = {
+    "th-1": "j75qG7PStFMo6T15puDK",
+    "th-2": "66o1EJj6uOAVnJuczXn2",
+    "th-3": "IAA8SKCg6vUtp36vLToN",
+    "th-8": "GJuDUmQJJrtt8SKta6wX",
+    "th-9": "45XqCSF0DX0CwoyPe09v"
+}
+
+THINGSBOARD_API_URL = "https://demo.thingsboard.io/api/v1/"  # Update to your ThingsBoard instance URL
 
 @app.route("/", methods=["GET"])
 def get_request():
     return {"status": "OK"}
 
-def send_to_thingsboard(data):
-    url = f"{THINGSBOARD_API_URL}{THINGSBOARD_DEVICE_TOKEN}/telemetry"
+def send_to_thingsboard(device_id, data):
+    device_token = DEVICE_TOKEN_MAP.get(device_id)
+    if not device_token:
+        return 400, f"Device ID {device_id} not found in token map"
+
+    url = f"{THINGSBOARD_API_URL}{device_token}/telemetry"
     try:
-        print(f"Sending data to ThingsBoard: {data}")
+        print(f"Sending data to ThingsBoard for device {device_id}: {data}")
         response = requests.post(url, json=data)
         response.raise_for_status()
         return response.status_code, response.text
     except requests.exceptions.RequestException as e:
-        print(f"Error sending data to ThingsBoard: {e}")
+        print(f"Error sending data to ThingsBoard for device {device_id}: {e}")
         return 500, str(e)
 
 @app.route("/uplink", methods=["POST"])
@@ -30,6 +42,15 @@ def get_data():
         return jsonify({"error": "Missing payload"}), 400
 
     try:
+        # Extract device_id
+        #end_device_ids = payload.get("end_device_ids", {})
+        #device_id = end_device_ids.get("device_id")
+        # Extract device_id
+        device_id = payload.get("data", {}).get("end_device_ids", {}).get("device_id")
+
+        if not device_id:
+            return jsonify({"error": "Missing device_id in payload"}), 400
+
         # Navigate through nested JSON to extract temperature and humidity
         uplink_message = payload.get("uplink_message", {})
         decoded_payload = uplink_message.get("decoded_payload", {})
@@ -48,11 +69,11 @@ def get_data():
         }
 
         # Send telemetry data to ThingsBoard
-        status_code, response_message = send_to_thingsboard(telemetry_data)
-        print(f"ThingsBoard API Response: {status_code} - {response_message}")
+        status_code, response_message = send_to_thingsboard(device_id, telemetry_data)
+        print(f"ThingsBoard API Response for device {device_id}: {status_code} - {response_message}")
 
         if status_code == 200:
-            return jsonify({"status": "success", "message": "Data sent to ThingsBoard"}), 200
+            return jsonify({"status": "success", "message": f"Data sent to ThingsBoard for device {device_id}"}), 200
         else:
             return jsonify({"status": "error", "message": response_message}), status_code
 
