@@ -43,7 +43,8 @@ def get_data():
 
     try:
         # Extract device_id from the payload
-        device_id = payload.get("end_device_ids", {}).get("device_id")
+        end_device_ids = payload.get("end_device_ids", {})
+        device_id = end_device_ids.get("device_id")
         print(f"Extracted device_id: {device_id}")
 
         if not device_id:
