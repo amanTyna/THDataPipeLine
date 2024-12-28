@@ -42,15 +42,15 @@ def get_data():
         return jsonify({"error": "Missing payload"}), 400
 
     try:
-        # Extract device_id from payload
-        device_id = payload.get("data", {}).get("end_device_ids", {}).get("device_id")
+        # Extract device_id from the payload
+        device_id = payload.get("end_device_ids", {}).get("device_id")
         print(f"Extracted device_id: {device_id}")
 
         if not device_id:
             return jsonify({"error": "Missing device_id in payload"}), 400
 
         # Extract telemetry data
-        decoded_payload = payload.get("data", {}).get("uplink_message", {}).get("decoded_payload", {})
+        decoded_payload = payload.get("uplink_message", {}).get("decoded_payload", {})
         print(f"Extracted decoded_payload: {decoded_payload}")
 
         temperature = decoded_payload.get("temperature")
@@ -80,6 +80,7 @@ def get_data():
     except Exception as e:
         print(f"Error processing payload: {e}")
         return jsonify({"error": "Failed to process payload", "message": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
