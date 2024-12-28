@@ -43,7 +43,7 @@ def get_data():
 
     try:
         # Extract device_id from payload
-        device_id = payload.get("data", {}).get("uplink_message", {}).get("end_device_ids", {}).get("device_id")
+        device_id = payload.get("data", {}).get("end_device_ids", {}).get("device_id")
         print(f"Extracted device_id: {device_id}")
 
         if not device_id:
