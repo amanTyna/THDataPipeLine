@@ -54,8 +54,20 @@ def get_data():
         decoded_payload = payload.get("uplink_message", {}).get("decoded_payload", {})
         print(f"Extracted decoded_payload: {decoded_payload}")
 
-        temperature = decoded_payload.get("temperature")
-        humidity = decoded_payload.get("humidity")
+        # Check device_id numerical suffix
+        try:
+            device_suffix = int(device_id.split('-')[-1])  # Extract numerical suffix
+        except ValueError:
+            return jsonify({"error": "Invalid device_id format"}), 400
+
+        if device_suffix > 20:
+            # Use `Hum_SHT` for humidity and `TempC_SHT` for temperature
+            temperature = decoded_payload.get("TempC_SHT")
+            humidity = decoded_payload.get("Hum_SHT")
+        else:
+            # Default fields
+            temperature = decoded_payload.get("temperature")
+            humidity = decoded_payload.get("humidity")
 
         if temperature is None or humidity is None:
             return jsonify({
