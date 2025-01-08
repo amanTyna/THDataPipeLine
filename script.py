@@ -1,22 +1,20 @@
 from flask import Flask, request, jsonify
 import requests
 from pymongo import MongoClient
-import os
+from datetime import datetime
+import pytz  # For timezone conversion
 
 app = Flask(__name__)
 
 # MongoDB Configuration
-# MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")  # Update to your MongoDB URI
 MONGO_URI = "mongodb+srv://timepass10999:RQpIEflYi2Jv3sDI@cluster0.rpqrt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-MONGO_DB = "sensor_data"
-MONGO_COLLECTION = "telemetry"
+DATABASE_NAME = "sensor_data"
 
-# Initialize MongoDB client
+# MongoDB Client Initialization
 mongo_client = MongoClient(MONGO_URI)
-mongo_db = mongo_client[MONGO_DB]
-mongo_collection = mongo_db[MONGO_COLLECTION]
+mongo_db = mongo_client[DATABASE_NAME]
 
-# Mapping device IDs to ThingsBoard device tokens
+# ThingsBoard Configuration
 DEVICE_TOKEN_MAP = {
     "th-1": "j75qG7PStFMo6T15puDK",
     "th-2": "66o1EJj6uOAVnJuczXn2",
@@ -60,9 +58,18 @@ DEVICE_TOKEN_MAP = {
 
 THINGSBOARD_API_URL = "https://demo.thingsboard.io/api/v1/"  # Update to your ThingsBoard instance URL
 
+
+def get_current_ist_time():
+    """Get the current timestamp in Indian Standard Time (IST)."""
+    ist_timezone = pytz.timezone("Asia/Kolkata")
+    current_ist_time = datetime.now(ist_timezone)
+    return current_ist_time.strftime("%Y-%m-%d %H:%M:%S")
+
+
 @app.route("/", methods=["GET"])
 def get_request():
     return {"status": "OK"}
+
 
 def send_to_thingsboard(device_id, data):
     device_token = DEVICE_TOKEN_MAP.get(device_id)
@@ -79,19 +86,11 @@ def send_to_thingsboard(device_id, data):
         print(f"Error sending data to ThingsBoard for device {device_id}: {e}")
         return 500, str(e)
 
-def store_to_mongodb(data):
-    try:
-        mongo_collection.insert_one(data)
-        print(f"Data successfully stored in MongoDB: {data}")
-        return True
-    except Exception as e:
-        print(f"Error storing data to MongoDB: {e}")
-        return False
 
 @app.route("/uplink", methods=["POST"])
 def get_data():
     payload = request.json
-    print(f"Received Payload: {payload}")  # Debugging received payload
+    print(f"Received Payload: {payload}")
 
     if not payload:
         return jsonify({"error": "Missing payload", "payload": payload}), 400
@@ -116,11 +115,9 @@ def get_data():
             return jsonify({"error": "Invalid device_id format"}), 400
 
         if device_suffix > 20:
-            # Use `Hum_SHT` for humidity and `TempC_SHT` for temperature
             temperature = decoded_payload.get("TempC_SHT")
             humidity = decoded_payload.get("Hum_SHT")
         else:
-            # Default fields
             temperature = decoded_payload.get("temperature")
             humidity = decoded_payload.get("humidity")
 
@@ -132,7 +129,6 @@ def get_data():
 
         # Prepare telemetry data
         telemetry_data = {
-            "device_id": device_id,
             "temperature": temperature,
             "humidity": humidity
         }
@@ -141,19 +137,27 @@ def get_data():
         status_code, response_message = send_to_thingsboard(device_id, telemetry_data)
         print(f"ThingsBoard API Response for device {device_id}: {status_code} - {response_message}")
 
-        # Store data in MongoDB
-        store_success = store_to_mongodb(telemetry_data)
+        # Save data to MongoDB
+        collection_name = f"device_{device_id}"  # Create collection name dynamically
+        mongo_collection = mongo_db[collection_name]
+        mongo_document = {
+            "device_id": device_id,
+            "temperature": temperature,
+            "humidity": humidity,
+            "timestamp": get_current_ist_time(),  # Save current IST timestamp
+        }
+        mongo_collection.insert_one(mongo_document)
+        print(f"Data saved to MongoDB collection '{collection_name}': {mongo_document}")
 
-        if status_code == 200 and store_success:
-            return jsonify({"status": "success", "message": f"Data sent to ThingsBoard and stored in MongoDB for device {device_id}"}), 200
-        elif status_code != 200:
-            return jsonify({"status": "error", "message": f"ThingsBoard Error: {response_message}"}), status_code
-        elif not store_success:
-            return jsonify({"status": "error", "message": "Failed to store data in MongoDB"}), 500
+        if status_code == 200:
+            return jsonify({"status": "success", "message": f"Data sent to ThingsBoard and MongoDB for device {device_id}"}), 200
+        else:
+            return jsonify({"status": "error", "message": response_message}), status_code
 
     except Exception as e:
         print(f"Error processing payload: {e}")
         return jsonify({"error": "Failed to process payload", "message": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
